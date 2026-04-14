@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Модель гидродинамики: МНГСЭ + ЛДГП</title>
+
+    <style>
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eef2f3; padding: 20px; display: flex; justify-content: center; }
+
+        .card { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); width: 800px; }
+
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 5px; }
+
+        p.subtitle { text-align: center; color: #7f8c8d; margin-top: 0; margin-bottom: 25px; }
+
+        .metrics { display: flex; justify-content: space-around; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #dee2e6; }
+
+        .metric-box { text-align: center; }
+
+        .metric-title { font-size: 14px; color: #7f8c8d; text-transform: uppercase; font-weight: bold; }
+
+        .metric-value { font-size: 24px; color: #2980b9; font-weight: bold; }
+
+        .simulation-area { position: relative; height: 350px; background: #f0f8ff; border: 2px solid #bdc3c7; border-radius: 8px; overflow: hidden; }
+
+        .cornea { position: absolute; left: -50px; top: 0; width: 300px; height: 350px; background: #dceefb; border-right: 3px solid #85c1e9; border-radius: 50%; opacity: 0.5;}
+
+        .ac { position: absolute; left: 50px; top: 150px; font-weight: bold; color: #2c3e50; }
+
+        .tdm { position: absolute; left: 300px; top: 100px; width: 8px; height: 150px; background: #95a5a6; transition: all 0.5s; z-index: 10; }
+
+        .tdm.fibrosed { background: #7f8c8d; width: 14px; left: 297px; } 
+
+        .tdm.gap { background: transparent; border-top: 60px solid #95a5a6; border-bottom: 60px solid #95a5a6; height: 30px; }
+
+        .tdm.gap.fibrosed { border-top: 60px solid #7f8c8d; border-bottom: 60px solid #7f8c8d; }
+
+        .isk { position: absolute; left: 320px; top: 150px; width: 100px; height: 39px; background: rgba(52, 152, 219, 0.4); border: 2px dashed #2980b9; transition: height 0.8s, top 0.8s; border-radius: 4px; }
+
+        .sclera-flap { position: absolute; left: 310px; top: 140px; width: 120px; border-bottom: 4px solid #bdc3c7; z-index: 5;}
+
+        .bleb { position: absolute; left: 450px; top: 150px; width: 160px; height: 20px; background: rgba(46, 204, 113, 0.3); border: 2px solid #27ae60; border-radius: 90px 90px 0 0; transition: height 0.8s, top 0.8s; border-bottom: none;}
+
+        .controls { display: flex; justify-content: space-between; align-items: center; margin-top: 25px; }
+
+        .slider-container { display: flex; flex-direction: column; width: 50%; }
+
+        input[type=range] { width: 100%; margin-top: 10px; }
+
+        .btn { padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+
+        .btn:hover { background: #c0392b; }
+
+        .btn:disabled { background: #95a5a6; cursor: not-allowed; }
+
+        .particle { position: absolute; width: 8px; height: 8px; background: #3498db; border-radius: 50%; opacity: 0.8; z-index: 15;}
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+    <h2>Симулятор гидродинамики глаза</h2>
+
+    <p class="subtitle">Восстановление оттока при ЛДГП после МНГСЭ</p>
+
+    <div class="metrics">
+
+        <div class="metric-box">
+
+            <div class="metric-title">Высота ИСК (по УБМ)</div>
+
+            <div class="metric-value"><span id="val-isk">0.39</span> мм</div>
+
+        </div>
+
+        <div class="metric-box">
+
+            <div class="metric-title">Высота подушки (ОКТ)</div>
+
+            <div class="metric-value"><span id="val-bleb">207</span> мкм</div>
+
+        </div>
+
+        <div class="metric-box">
+
+            <div class="metric-title">ВГД (прогноз)</div>
+
+            <div class="metric-value"><span id="val-iop">21</span> мм рт. ст.</div>
+
+        </div>
+
+    </div>
+
+    <div class="simulation-area" id="canvas">
+
+        <div class="cornea"></div>
+
+        <div class="ac">Передняя камера<br><small>(скопление ВГЖ)</small></div>
+
+        <div id="tdm" class="tdm"></div>
+
+        <div class="sclera-flap"></div>
+
+        <div id="isk" class="isk"></div>
+
+        <div id="bleb" class="bleb"></div>
+
+        <div style="position:absolute; left:480px; top:160px; color:#27ae60; font-weight:bold; font-size:14px;">Субконъюнктивальное<br>пространство</div>
+
+    </div>
+
+    <div class="controls">
+
+        <div class="slider-container">
+
+            <label for="time"><strong>Срок после МНГСЭ:</strong> <span id="time-label" style="color:#e67e22; font-weight:bold;">1 мес.</span></label>
+
+            <input type="range" id="time" min="1" max="6" value="1" step="1">
+
+            <small style="color:#7f8c8d; margin-top:5px;">Увеличение срока ведет к фиброзу мембраны.</small>
+
+        </div>
+
+        <button id="laserBtn" class="btn">⚡ Лазерный импульс (ЛДГП)</button>
+
+    </div>
+
+</div>
+
+<script>
+
+    const timeSlider = document.getElementById('time');
+
+    const timeLabel = document.getElementById('time-label');
+
+    const tdm = document.getElementById('tdm');
+
+    const laserBtn = document.getElementById('laserBtn');
+
+    const isk = document.getElementById('isk');
+
+    const bleb = document.getElementById('bleb');
+
+    const canvas = document.getElementById('canvas');
+
+    let isFired = false;
+
+    let particleInterval;
+
+    let slowFlow = setInterval(() => spawnParticle(false), 800);
+
+    timeSlider.addEventListener('input', function() {
+
+        if(isFired) return;
+
+        const val = this.value;
+
+        timeLabel.innerText = val + ' мес.';
+
+        if (val >= 4) { tdm.classList.add('fibrosed'); } else { tdm.classList.remove('fibrosed'); }
+
+    });
+
+    laserBtn.addEventListener('click', function() {
+
+        if(isFired) return;
+
+        isFired = true;
+
+        laserBtn.disabled = true;
+
+        laserBtn.innerText = 'Процедура выполнена';
+
+        timeSlider.disabled = true;
+
+        clearInterval(slowFlow);
+
+        tdm.classList.add('gap');
+
+        const months = parseInt(timeSlider.value);
+
+        let targetIsk, targetBleb, targetIop;
+
+        if (months <= 2) { targetIsk = 0.52; targetBleb = 467; targetIop = 14; } 
+
+        else if (months <= 4) { targetIsk = 0.46; targetBleb = 320; targetIop = 16; } 
+
+        else { targetIsk = 0.41; targetBleb = 240; targetIop = 19; }
+
+        isk.style.height = (targetIsk * 100) + 'px';
+
+        isk.style.top = (150 - ((targetIsk * 100) - 39)/2) + 'px';
+
+        bleb.style.height = (targetBleb / 4) + 'px';
+
+        bleb.style.top = (150 - (targetBleb / 4) + 20) + 'px';
+
+        document.getElementById('val-isk').innerText = targetIsk.toFixed(2);
+
+        document.getElementById('val-bleb').innerText = targetBleb;
+
+        document.getElementById('val-iop').innerText = targetIop;
+
+        particleInterval = setInterval(() => spawnParticle(true), 150);
+
+    });
+
+    function spawnParticle(isFast) {
+
+        let p = document.createElement('div');
+
+        p.className = 'particle';
+
+        p.style.left = '200px';
+
+        p.style.top = (160 + Math.random() * 20) + 'px';
+
+        canvas.appendChild(p);
+
+        let pos = 200;
+
+        let id = setInterval(() => {
+
+            pos += isFast ? 5 : 1;
+
+            p.style.left = pos + 'px';
+
+            if (!isFired && pos > 290 && pos < 310) { setTimeout(() => p.remove(), 500); clearInterval(id); return; }
+
+            if (isFired && pos > 480) { let currentTop = parseFloat(p.style.top); p.style.top = (currentTop - 2) + 'px'; }
+
+            if (pos > 650 || parseFloat(p.style.top) < 50) { p.remove(); clearInterval(id); }
+
+        }, 30);
+
+    }
+
+</script>
+
+</body>
+
+</html>
